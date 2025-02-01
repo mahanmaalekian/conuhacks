@@ -13,6 +13,23 @@ drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
 cap = cv2.VideoCapture(0)
 
+# TODO: make array of students
+
+def get_mesh_results(image):
+    """
+    get the face meshes from the video frame
+    :param image: frame from video to be processed
+    :return: set of mesh objects (0-max_num_faces of faces)
+    """
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image.flags.writeable = False  # Performance optimization
+
+    results = face_mesh.process(image)
+    image.flags.writeable = True
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    return results
+
+
 while cap.isOpened():
     success, image = cap.read()
     if not success:
@@ -20,13 +37,7 @@ while cap.isOpened():
 
     start = time.time()
 
-    # Flip the image for selfie view and convert to RGB
-    image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
-    image.flags.writeable = False  # Performance optimization
-
-    results = face_mesh.process(image)
-    image.flags.writeable = True
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    results = get_mesh_results(image)
 
     img_h, img_w, _ = image.shape  # Get image dimensions
 
