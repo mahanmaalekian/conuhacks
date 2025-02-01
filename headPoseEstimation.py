@@ -13,6 +13,7 @@ drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
 cap = cv2.VideoCapture(0)
 
+
 # TODO: make array of students
 
 def get_mesh_results(image):
@@ -28,6 +29,22 @@ def get_mesh_results(image):
     image.flags.writeable = True
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     return results
+
+
+def get_direction(horizontal, vertical):
+    text = ""
+    if  horizontal < -5 or horizontal > 5:
+        text = "Gazing"
+
+    if vertical < -3:
+        text += " Down"
+    elif vertical > 3:
+        text += " Up"
+
+    if not text:
+        text = "Straight"
+
+    return text
 
 
 while cap.isOpened():
@@ -84,18 +101,7 @@ while cap.isOpened():
             z = angles[2] * 360
 
             # Determine head position
-            text = "Looking"
-            if horizontal < -5:
-                text += " Left"
-            elif horizontal > 5:
-                text += " Right"
-
-            if vertical < -3:
-                text += " Down"
-            elif vertical > 3:
-                text += " Up"
-            else:
-                text += " Straight"
+            text = get_direction(horizontal, vertical)
 
             # Project nose direction onto 2D
             nose_3d_projection, _ = cv2.projectPoints(nose_3d, rot_vec, trans_vec, cam_matrix, dist_matrix)
