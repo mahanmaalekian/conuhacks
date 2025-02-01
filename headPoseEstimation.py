@@ -13,7 +13,10 @@ drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
 cap = cv2.VideoCapture(0)
 
-
+# TODO: compensate for angle with respect to camera
+# TODO: light up face when cheating (details TBD)
+# TODO: Associate cheaters with student entities (and thus names)
+# TODO: Call out names
 # TODO: make array of students
 
 def get_mesh_results(image):
@@ -33,7 +36,7 @@ def get_mesh_results(image):
 
 def get_direction(horizontal, vertical):
     text = ""
-    if  horizontal < -5 or horizontal > 5:
+    if  horizontal < -3.5 or horizontal > 3.5:
         text = "Gazing"
 
     if vertical < -3:
@@ -46,6 +49,11 @@ def get_direction(horizontal, vertical):
 
     return text
 
+def writeValue(image, p1, p2, horizontal, vertical, text, x_pos):
+    cv2.line(image, p1, p2, (0, 255, 0), 3)
+    cv2.putText(image, text, (x_pos, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(image, f"horizontal: {horizontal:.2f}", (x_pos, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(image, f"vertical: {vertical:.2f}", (x_pos, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 while cap.isOpened():
     success, image = cap.read()
@@ -98,8 +106,6 @@ while cap.isOpened():
             # Extract head orientation angles
             vertical = angles[0] * 360
             horizontal = angles[1] * 360
-            z = angles[2] * 360
-
             # Determine head position
             text = get_direction(horizontal, vertical)
 
@@ -109,12 +115,8 @@ while cap.isOpened():
             p1 = (int(nose_2d[0]), int(nose_2d[1]))
             p2 = (int(nose_2d[0] + horizontal * 10), int(nose_2d[1] - vertical * 10))
 
-            # Draw line for head pose direction
-            cv2.line(image, p1, p2, (0, 255, 0), 3)
-            cv2.putText(image, text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(image, f"x: {horizontal:.2f}", (500, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(image, f"y: {vertical:.2f}", (500, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(image, f"z: {z:.2f}", (500, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
+
 
             # Draw face landmarks
             mp_drawing.draw_landmarks(
