@@ -12,6 +12,8 @@ def speak_async(text):
         engine.runAndWait()
     threading.Thread(target=run).start()
 
+engine = pyttsx3.init()
+wasGazing = False
 # Eye landmark indices (left and right eye)
 LEFT_EYE = [33, 133, 160, 158, 153, 144, 145, 23]
 RIGHT_EYE = [263, 362, 385, 387, 373, 380, 374, 253]
@@ -96,6 +98,7 @@ def get_direction(horizontal, vertical, eyes_gazing, x_pos):
     if eyes_gazing or (hor_adj < -3.5 or hor_adj > 3.5):
         text = "Gazing"
         speak_async("Gazing detected")
+
     if vert_adj < -3:
         text += " Down"
     elif vert_adj > 3:
