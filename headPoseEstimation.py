@@ -19,6 +19,7 @@ LEFT_EYE = [33, 133, 160, 158, 153, 144, 145, 23]
 RIGHT_EYE = [263, 362, 385, 387, 373, 380, 374, 253]
 IRIS_LEFT = [468, 469, 470, 471]  # Approximate iris points
 IRIS_RIGHT = [473, 474, 475, 476]
+dev_mode = False
 
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
@@ -38,6 +39,10 @@ cap = cv2.VideoCapture(0)
 # TODO: Associate cheaters with student entities (and thus names)
 # TODO: Call out names
 # TODO: make array of students
+
+def dev_mode_on():
+    global dev_mode
+    dev_mode = True
 
 def get_mesh_results(image):
     """
@@ -242,17 +247,15 @@ def open_camera():
                 if gazing:
                     highlight_cheater(image, face_landmarks.landmark, img_w, img_h)
 
-                # writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
-
-                # Draw face landmarks
-                '''
-                mp_drawing.draw_landmarks(
-                    image=image,
-                    landmark_list=face_landmarks,
-                    connections=mp_face_mesh.FACEMESH_TESSELATION,
-                    landmark_drawing_spec=drawing_spec,
-                    connection_drawing_spec=drawing_spec
-                )'''
+                if dev_mode:
+                    writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
+                    mp_drawing.draw_landmarks(
+                        image=image,
+                        landmark_list=face_landmarks,
+                        connections=mp_face_mesh.FACEMESH_TESSELATION,
+                        landmark_drawing_spec=drawing_spec,
+                        connection_drawing_spec=drawing_spec
+                    )
 
         # Calculate FPS
         end = time.time()
@@ -296,7 +299,7 @@ root.title("Cheater Detection System")
 root.geometry("300x200")
 
 # Toggle button
-toggle_button = tk.Button(root, text="Cheating Detection: OFF", command=toggle_system, width=25, height=2)
+toggle_button = tk.Button(root, text="Cheating Detection: OFF", command=dev_mode_on, width=25, height=2)
 toggle_button.pack(pady=20)
 
 # Start button
