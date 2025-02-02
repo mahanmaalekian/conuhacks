@@ -46,7 +46,7 @@ def get_eye_direction(landmarks, img_w, img_h):
     def get_valid_points(indices):
         """Returns valid landmark points"""
         return [(int(landmarks[i].x * img_w), int(landmarks[i].y * img_h)) for i in indices if i < len(landmarks)]
-    print(len(landmarks), max(IRIS_RIGHT))
+    # print(len(landmarks), max(IRIS_RIGHT))
     if len(landmarks) < max(IRIS_RIGHT) + 1:
         return "No valid eye data"
     
@@ -69,21 +69,26 @@ def get_eye_direction(landmarks, img_w, img_h):
     right_iris_center = np.mean(iris_right, axis=0).astype(int)
     
     
-    if left_iris_center[0] < left_eye_center[0] - 5 and right_iris_center[0] < right_eye_center[0] - 5 or left_iris_center[0] > left_eye_center[0] + 5 and right_iris_center[0] > right_eye_center[0] + 5:
+    if left_iris_center[0] < left_eye_center[0] - 4 and right_iris_center[0] < right_eye_center[0] - 4 or left_iris_center[0] > left_eye_center[0] + 5 and right_iris_center[0] > right_eye_center[0] + 5:
         return True
     
     return False
 
+def adjust_pos(horizontal, vertical, x_pos):
+    return horizontal, vertical
 
-def get_direction(horizontal, vertical, eyes_gazing):
+def get_direction(horizontal, vertical, eyes_gazing, x_pos):
+    hor_adj, vert_adj = adjust_pos(horizontal, vertical, x_pos)
+
+
     text = ""
     global drawing_spec
     global color_tuple
-    if  horizontal < -3.5 or horizontal > 3.5 or eyes_gazing:
+    if eyes_gazing or (hor_adj < -3.5 or hor_adj > 3.5):
         text = "Gazing"
-    if vertical < -3:
+    if vert_adj < -3:
         text += " Down"
-    elif vertical > 3:
+    elif vert_adj > 3:
         text += " Up"
 
     if not text:
@@ -94,7 +99,6 @@ def get_direction(horizontal, vertical, eyes_gazing):
     else:
         drawing_spec = mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
         color_tuple = (0, 255, 0)
-
 
     return text
 
@@ -152,19 +156,43 @@ while cap.isOpened():
             rmat, _ = cv2.Rodrigues(rot_vec)
             angles, _, _, _, _, _ = cv2.RQDecomp3x3(rmat)
 
+            # -------------------------------------------
+
+            # Get the face bounding box or use key landmarks
+            face_center_x = (face_landmarks.landmark[33].x + face_landmarks.landmark[263].x) / 2
+            face_center_y = (face_landmarks.landmark[1].y + face_landmarks.landmark[152].y) / 2
+
+            # Normalize position relative to camera center
+            image_width = image.shape[1]
+            image_height = image.shape[0]
+
+            # Normalize to range [-1, 1] where 0 is center of the frame
+            x_offset = (face_center_x - (image_width / 2)) / (image_width / 2)
+            y_offset = (face_center_y - (image_height / 2)) / (image_height / 2)
+
+            # Scale based on expected FOV correction
+            horizontal_correction = x_offset * 15  # Adjust for field of view (≈15° per half-screen width)
+            vertical_correction = y_offset * 10  # Adjust for FOV (≈10° per half-screen height)
+
+            # -------------------------------------------
+
             # Extract head orientation angles
             vertical = angles[0] * 360
             horizontal = angles[1] * 360
             # Determine head position
             eyes_gazing = get_eye_direction(face_landmarks.landmark, img_w, img_h)
             #print(eyes_gazing)
-            text = get_direction(horizontal, vertical, eyes_gazing)
+
 
             # Project nose direction onto 2D
             nose_3d_projection, _ = cv2.projectPoints(nose_3d, rot_vec, trans_vec, cam_matrix, dist_matrix)
 
             p1 = (int(nose_2d[0]), int(nose_2d[1]))
             p2 = (int(nose_2d[0] + horizontal * 10), int(nose_2d[1] - vertical * 10))
+
+            # text = get_direction(horizontal_correction, vertical_correction, eyes_gazing, p1[0])
+            text = get_direction(horizontal, vertical, eyes_gazing, p1[0])
+
 
             writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
 
