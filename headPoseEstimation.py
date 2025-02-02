@@ -5,7 +5,9 @@ import time
 import tkinter as tk
 
 # Initialize pyttsx3 engine
-
+dev_mode = False
+funny_mode = False
+overlay_img = cv2.imread("assets/caught_in_4k.jpg", cv2.IMREAD_UNCHANGED)  # Supports transparency
 # def speak_async(text):
 #     print("TALKINGGGG",time.time())
 #
@@ -40,9 +42,7 @@ cap = cv2.VideoCapture(0)
 # TODO: Call out names
 # TODO: make array of students
 
-def dev_mode_on():
-    global dev_mode
-    dev_mode = True
+
 
 def get_mesh_results(image):
     """
@@ -148,15 +148,22 @@ def highlight_cheater(image, face_landmarks, img_w, img_h):
     x_max = int(max([lm.x * img_w for lm in face_landmarks]))
     y_max = int(max([lm.y * img_h for lm in face_landmarks]))
 
-    # Create a transparent overlay
-    overlay = image.copy()
+    if funny_mode:
+        overlay_resized = cv2.resize(overlay_img, (x_max - x_min, y_max - y_min))
 
-    # Draw a solid red rectangle on the overlay
-    cv2.rectangle(overlay, (x_min, y_min), (x_max, y_max), (0, 0, 255), -1)  # Red color (BGR)
+        # Ensure image is within bounds
+        if y_max <= image.shape[0] and x_max <= image.shape[1]:
+            image[y_min:y_max, x_min:x_max] = overlay_resized
+    else:
+        # Create a transparent overlay
+        overlay = image.copy()
 
-    # Blend overlay with the original image
-    alpha = 0.5  # Transparency level (0.0 - 1.0)
-    cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
+        # Draw a solid red rectangle on the overlay
+        cv2.rectangle(overlay, (x_min, y_min), (x_max, y_max), (0, 0, 255), -1)  # Red color (BGR)
+
+        # Blend overlay with the original image
+        alpha = 0.5  # Transparency level (0.0 - 1.0)
+        cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
 
 
 def open_camera():
@@ -245,7 +252,8 @@ def open_camera():
                 text, gazing = get_direction(horizontal, vertical, eyes_gazing, p1[0])
 
                 if gazing:
-                    highlight_cheater(image, face_landmarks.landmark, img_w, img_h)
+                    if not dev_mode:
+                        highlight_cheater(image, face_landmarks.landmark, img_w, img_h)
 
                 if dev_mode:
                     writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
@@ -260,7 +268,8 @@ def open_camera():
         # Calculate FPS
         end = time.time()
         fps = 1 / (end - start)
-        # cv2.putText(image, f"FPS: {fps:.2f}", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        if dev_mode:
+            cv2.putText(image, f"FPS: {fps:.2f}", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
         # Show output
         cv2.imshow('MediaPipe FaceMesh', image)
@@ -279,7 +288,7 @@ def toggle_system():
     """Toggles cheating detection system"""
     global system_enabled
     system_enabled = not system_enabled
-    toggle_button.config(text="Cheating Detection: ON" if system_enabled else "Cheating Detection: OFF")
+    dev_button.config(text="Cheating Detection: ON" if system_enabled else "Cheating Detection: OFF")
 
 
 def start_stream():
@@ -292,19 +301,40 @@ def start_stream():
     root.destroy()  # Close the GUI window
     open_camera()  # Start the OpenCV stream
 
+def exit_gui():
+    root.destroy()
+
 
 # Create Tkinter GUI
 root = tk.Tk()
 root.title("Cheater Detection System")
-root.geometry("300x200")
+root.geometry("600x400")
+
+def dev_mode_toggle():
+    global dev_mode
+    dev_mode = not dev_mode
+    dev_button.config(text="Dev mode: ON" if dev_mode else "Dev mode: OFF")
+
+def funny_mode_toggle():
+    global funny_mode
+    funny_mode = not funny_mode
+    funny_button.config(text="Funny mode: ON" if funny_mode else "Funny mode: OFF")
 
 # Toggle button
-toggle_button = tk.Button(root, text="Cheating Detection: OFF", command=dev_mode_on, width=25, height=2)
-toggle_button.pack(pady=20)
+dev_button = tk.Button(root, text="Dev mode: OFF", command=dev_mode_toggle, width=25, height=2)
+dev_button.pack(pady=10)
+
+funny_button = tk.Button(root, text="Funny mode: OFF", command=funny_mode_toggle, width=25, height=2)
+funny_button.pack(pady=10)
 
 # Start button
-start_button = tk.Button(root, text="Start Video Feed", command=start_stream, width=25, height=2, bg="green", fg="white")
+start_button = tk.Button(root, text="Start Video Feed", command=start_stream, width=25, height=2, bg="green")
 start_button.pack(pady=10)
+
+exit_button = tk.Button(root, text="Exit SnitchMaxxing", command=exit_gui, width=25, height=2, bg="green")
+exit_button.pack(pady=10)
 
 # Run Tkinter main loop
 root.mainloop()
+
+
