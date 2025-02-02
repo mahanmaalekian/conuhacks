@@ -2,6 +2,15 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import time
+import pyttsx3
+import threading
+
+def speak_async(text):
+    def run():
+        engine = pyttsx3.init()
+        engine.say(text)
+        engine.runAndWait()
+    threading.Thread(target=run).start()
 
 # Eye landmark indices (left and right eye)
 LEFT_EYE = [33, 133, 160, 158, 153, 144, 145, 23]
@@ -86,6 +95,7 @@ def get_direction(horizontal, vertical, eyes_gazing, x_pos):
     global color_tuple
     if eyes_gazing or (hor_adj < -3.5 or hor_adj > 3.5):
         text = "Gazing"
+        speak_async("Gazing detected")
     if vert_adj < -3:
         text += " Down"
     elif vert_adj > 3:
