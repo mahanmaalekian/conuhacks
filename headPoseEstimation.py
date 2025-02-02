@@ -2,7 +2,10 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import time
+import pyttsx3
 
+engine = pyttsx3.init()
+wasGazing = False
 # Eye landmark indices (left and right eye)
 LEFT_EYE = [33, 133, 160, 158, 153, 144, 145, 23]
 RIGHT_EYE = [263, 362, 385, 387, 373, 380, 374, 253]
@@ -86,6 +89,10 @@ def get_direction(horizontal, vertical, eyes_gazing, x_pos):
     global color_tuple
     if eyes_gazing or (hor_adj < -3.5 or hor_adj > 3.5):
         text = "Gazing"
+        if not wasGazing:
+
+            engine.say("Thomas is gay")
+            engine.runAndWait()
     if vert_adj < -3:
         text += " Down"
     elif vert_adj > 3:
