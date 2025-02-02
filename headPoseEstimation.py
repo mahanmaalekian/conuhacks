@@ -2,18 +2,21 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import time
-import pyttsx3
 import threading
+import pyttsx3
+import multiprocessing
+import matplotlib.pyplot as plt
 
-def speak_async(text):
-    def run():
-        engine = pyttsx3.init()
-        engine.say(text)
-        engine.runAndWait()
-    threading.Thread(target=run).start()
+# Initialize pyttsx3 engine
 
-engine = pyttsx3.init()
-wasGazing = False
+# def speak_async(text):
+#     print("TALKINGGGG",time.time())
+#
+#     print("MAYBEEEEE", time.time())
+#     engine = pyttsx3.init()
+#     engine.say(text)
+#     engine.runAndWait()
+
 # Eye landmark indices (left and right eye)
 LEFT_EYE = [33, 133, 160, 158, 153, 144, 145, 23]
 RIGHT_EYE = [263, 362, 385, 387, 373, 380, 374, 253]
@@ -95,9 +98,14 @@ def get_direction(horizontal, vertical, eyes_gazing, x_pos):
     text = ""
     global drawing_spec
     global color_tuple
+
     if eyes_gazing or (hor_adj < -3.5 or hor_adj > 3.5):
         text = "Gazing"
-        speak_async("Gazing detected")
+        # speak("this is a test")
+
+    #elif not(eyes_gazing or (hor_adj < -3.5 or hor_adj > 3.5)):
+    #    init_gaze = True
+
 
     if vert_adj < -3:
         text += " Down"
@@ -108,12 +116,13 @@ def get_direction(horizontal, vertical, eyes_gazing, x_pos):
         text = "Straight"
     if "Gazing" in text:
         drawing_spec = mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=1, circle_radius=1)
+        ret = True
         color_tuple = (0, 0, 255)
     else:
         drawing_spec = mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
         color_tuple = (0, 255, 0)
-
-    return text
+        ret = False
+    return text, ret
 
 def writeValue(image, p1, p2, horizontal, vertical, text, x_pos):
     cv2.line(image, p1, p2, color_tuple, 3)
@@ -121,9 +130,33 @@ def writeValue(image, p1, p2, horizontal, vertical, text, x_pos):
     cv2.putText(image, f"horizontal: {horizontal:.2f}", (x_pos, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color_tuple, 2)
     cv2.putText(image, f"vertical: {vertical:.2f}", (x_pos, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color_tuple, 2)
 
+def highlight_cheater(image, face_landmarks, img_w, img_h):
+    """
+    Draws a translucent red rectangle over the face of a detected cheater.
+    """
+    # Ensure landmarks are correctly processed
+    x_min = int(min([lm.x * img_w for lm in face_landmarks]))  # Multiply by img_w
+    y_min = int(min([lm.y * img_h for lm in face_landmarks]))  # Multiply by img_h
+    x_max = int(max([lm.x * img_w for lm in face_landmarks]))
+    y_max = int(max([lm.y * img_h for lm in face_landmarks]))
+
+    # Create a transparent overlay
+    overlay = image.copy()
+
+    # Draw a solid red rectangle on the overlay
+    cv2.rectangle(overlay, (x_min, y_min), (x_max, y_max), (0, 0, 255), -1)  # Red color (BGR)
+
+    # Blend overlay with the original image
+    alpha = 0.5  # Transparency level (0.0 - 1.0)
+    cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
+
+
+
+
 while cap.isOpened():
     success, image = cap.read()
     if not success:
+
         break
 
     start = time.time()
@@ -194,7 +227,7 @@ while cap.isOpened():
             horizontal = angles[1] * 360
             # Determine head position
             eyes_gazing = get_eye_direction(face_landmarks.landmark, img_w, img_h)
-            #print(eyes_gazing)
+
 
 
             # Project nose direction onto 2D
@@ -204,30 +237,33 @@ while cap.isOpened():
             p2 = (int(nose_2d[0] + horizontal * 10), int(nose_2d[1] - vertical * 10))
 
             # text = get_direction(horizontal_correction, vertical_correction, eyes_gazing, p1[0])
-            text = get_direction(horizontal, vertical, eyes_gazing, p1[0])
 
+            text, gazing = get_direction(horizontal, vertical, eyes_gazing, p1[0])
 
-            writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
+            if gazing:
+                highlight_cheater(image,face_landmarks.landmark,img_w,img_h)
 
+            # writeValue(image, p1, p2, horizontal, vertical, text, p1[0])
 
             # Draw face landmarks
+            '''
             mp_drawing.draw_landmarks(
                 image=image,
                 landmark_list=face_landmarks,
                 connections=mp_face_mesh.FACEMESH_TESSELATION,
                 landmark_drawing_spec=drawing_spec,
                 connection_drawing_spec=drawing_spec
-            )
+            )'''
 
     # Calculate FPS
     end = time.time()
     fps = 1 / (end - start)
-    cv2.putText(image, f"FPS: {fps:.2f}", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    # cv2.putText(image, f"FPS: {fps:.2f}", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
     # Show output
     cv2.imshow('MediaPipe FaceMesh', image)
     if cv2.waitKey(5) & 0xFF == 27:  # Exit on 'Esc' key
-        break
+       break
 
 cap.release()
 cv2.destroyAllWindows()
