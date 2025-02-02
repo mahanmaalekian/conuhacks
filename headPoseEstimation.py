@@ -9,7 +9,8 @@ face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5,
                                   min_tracking_confidence=0.5,
                                   max_num_faces=5)
 mp_drawing = mp.solutions.drawing_utils
-drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
+color_tuple = (0, 255, 0)
+drawing_spec = mp_drawing.DrawingSpec(color=color_tuple, thickness=1, circle_radius=1)
 
 cap = cv2.VideoCapture(0)
 
@@ -36,6 +37,8 @@ def get_mesh_results(image):
 
 def get_direction(horizontal, vertical):
     text = ""
+    global drawing_spec
+    global color_tuple
     if  horizontal < -3.5 or horizontal > 3.5:
         text = "Gazing"
 
@@ -46,14 +49,21 @@ def get_direction(horizontal, vertical):
 
     if not text:
         text = "Straight"
+    if "Gazing" in text:
+        drawing_spec = mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=1, circle_radius=1)
+        color_tuple = (0, 0, 255)
+    else:
+        drawing_spec = mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
+        color_tuple = (0, 255, 0)
+
 
     return text
 
 def writeValue(image, p1, p2, horizontal, vertical, text, x_pos):
-    cv2.line(image, p1, p2, (0, 255, 0), 3)
-    cv2.putText(image, text, (x_pos, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    cv2.putText(image, f"horizontal: {horizontal:.2f}", (x_pos, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    cv2.putText(image, f"vertical: {vertical:.2f}", (x_pos, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.line(image, p1, p2, color_tuple, 3)
+    cv2.putText(image, text, (x_pos, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, color_tuple, 2)
+    cv2.putText(image, f"horizontal: {horizontal:.2f}", (x_pos, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color_tuple, 2)
+    cv2.putText(image, f"vertical: {vertical:.2f}", (x_pos, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color_tuple, 2)
 
 while cap.isOpened():
     success, image = cap.read()
