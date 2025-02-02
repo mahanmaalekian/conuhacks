@@ -3,11 +3,18 @@ import mediapipe as mp
 import numpy as np
 import time
 
+# Eye landmark indices (left and right eye)
+LEFT_EYE = [33, 133, 160, 158, 153, 144, 145, 23]
+RIGHT_EYE = [263, 362, 385, 387, 373, 380, 374, 253]
+IRIS_LEFT = [468, 469, 470, 471]  # Approximate iris points
+IRIS_RIGHT = [473, 474, 475, 476]
+
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5,
                                   min_tracking_confidence=0.5,
-                                  max_num_faces=5)
+                                  max_num_faces=5,
+                                 refine_landmarks=True)
 mp_drawing = mp.solutions.drawing_utils
 color_tuple = (0, 255, 0)
 drawing_spec = mp_drawing.DrawingSpec(color=color_tuple, thickness=1, circle_radius=1)
@@ -34,14 +41,46 @@ def get_mesh_results(image):
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     return results
 
+def get_eye_direction(landmarks, img_w, img_h):
+    """ Determines eye gaze direction by tracking iris position """
+    def get_valid_points(indices):
+        """Returns valid landmark points"""
+        return [(int(landmarks[i].x * img_w), int(landmarks[i].y * img_h)) for i in indices if i < len(landmarks)]
+    print(len(landmarks), max(IRIS_RIGHT))
+    if len(landmarks) < max(IRIS_RIGHT) + 1:
+        return "No valid eye data"
+    
+    left_eye_points = get_valid_points(LEFT_EYE)
+    right_eye_points = get_valid_points(RIGHT_EYE)
+    iris_left = get_valid_points(IRIS_LEFT)
+    iris_right = get_valid_points(IRIS_RIGHT)
 
-def get_direction(horizontal, vertical):
+    if len(left_eye_points) < 3 or len(right_eye_points) < 3 or len(iris_left) < 2 or len(iris_right) < 2:
+        return "No valid eye data"
+    left_eye_points = np.array([(int(landmarks[i].x * img_w), int(landmarks[i].y * img_h)) for i in LEFT_EYE])
+    right_eye_points = np.array([(int(landmarks[i].x * img_w), int(landmarks[i].y * img_h)) for i in RIGHT_EYE])
+    iris_left = np.array([(int(landmarks[i].x * img_w), int(landmarks[i].y * img_h)) for i in IRIS_LEFT])
+    iris_right = np.array([(int(landmarks[i].x * img_w), int(landmarks[i].y * img_h)) for i in IRIS_RIGHT])
+    
+    # Get the middle points of the eye and iris
+    left_eye_center = np.mean(left_eye_points, axis=0).astype(int)
+    right_eye_center = np.mean(right_eye_points, axis=0).astype(int)
+    left_iris_center = np.mean(iris_left, axis=0).astype(int)
+    right_iris_center = np.mean(iris_right, axis=0).astype(int)
+    
+    
+    if left_iris_center[0] < left_eye_center[0] - 5 and right_iris_center[0] < right_eye_center[0] - 5 or left_iris_center[0] > left_eye_center[0] + 5 and right_iris_center[0] > right_eye_center[0] + 5:
+        return True
+    
+    return False
+
+
+def get_direction(horizontal, vertical, eyes_gazing):
     text = ""
     global drawing_spec
     global color_tuple
-    if  horizontal < -3.5 or horizontal > 3.5:
+    if  horizontal < -3.5 or horizontal > 3.5 or eyes_gazing:
         text = "Gazing"
-
     if vertical < -3:
         text += " Down"
     elif vertical > 3:
@@ -117,7 +156,9 @@ while cap.isOpened():
             vertical = angles[0] * 360
             horizontal = angles[1] * 360
             # Determine head position
-            text = get_direction(horizontal, vertical)
+            eyes_gazing = get_eye_direction(face_landmarks.landmark, img_w, img_h)
+            #print(eyes_gazing)
+            text = get_direction(horizontal, vertical, eyes_gazing)
 
             # Project nose direction onto 2D
             nose_3d_projection, _ = cv2.projectPoints(nose_3d, rot_vec, trans_vec, cam_matrix, dist_matrix)
